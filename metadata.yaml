@@ -1,5 +1,5 @@
 homepage: "https://idealo.de"
 documentation: "https://github.com/newnorthdigital/idealo-web-tag/blob/main/README.md"
 versions:
-  - sha: REPLACE_WITH_COMMIT_SHA
+  - sha: 4ab2c21c7c9269c36c2aec2f01425fb3d7c3de4c
     changeNotes: "Initial release."
