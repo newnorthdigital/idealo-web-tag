@@ -104,7 +104,7 @@ It then fires this URL as an image pixel using GTM's `sendPixel` API. No externa
 
 ## Author
 
-Built and maintained by [New North Digital](https://newnorthdigital.com).
+Built and maintained by [New North Digital](https://newnorth.digital?utm_source=github&utm_medium=gtm-template&utm_campaign=idealo-web-tag).
 
 ## License
 
