@@ -131,12 +131,18 @@ ___TEMPLATE_PARAMETERS___
     "help": "The idealo click ID from the idealoid URL parameter. If provided, it will be sent as the cli parameter. Use a GTM variable that reads the idealoid query parameter or a first-party cookie storing it."
   },
   {
-    "type": "CHECKBOX",
-    "name": "debug",
-    "displayName": "Enable debug logging",
-    "simpleValueType": true,
-    "defaultValue": false,
-    "help": "When enabled, logs debug information to the browser console. Disable in production."
+    "type": "GROUP",
+    "name": "debugging",
+    "displayName": "Debugging",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
+      {
+        "type": "CHECKBOX",
+        "name": "debug",
+        "checkboxText": "Log debug messages to console",
+        "simpleValueType": true
+      }
+    ]
   }
 ]
 
