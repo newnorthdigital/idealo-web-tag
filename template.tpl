@@ -215,7 +215,7 @@ if (data.idealo_click_id) {
 }
 
 var pixelUrl = baseUrl + params;
-debugLog('Pixel URL: ' + pixelUrl);
+debugLog('Firing pixel for order: ' + makeString(data.orderId));
 
 sendPixel(pixelUrl, function() {
   debugLog('Pixel sent successfully');
