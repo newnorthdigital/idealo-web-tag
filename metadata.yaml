@@ -1,5 +1,7 @@
 homepage: "https://idealo.de"
 documentation: "https://github.com/newnorthdigital/idealo-web-tag/blob/main/README.md"
 versions:
+  - sha: ef00fe3c7a9ce41d349571313931a54ca70a89a5
+    changeNotes: "Embed vendor logo as 96x96 PNG thumbnail; add canonical BOM."
   - sha: 4ab2c21c7c9269c36c2aec2f01425fb3d7c3de4c
     changeNotes: "Initial release."
