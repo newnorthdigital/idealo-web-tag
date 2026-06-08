@@ -1,6 +1,8 @@
 homepage: "https://idealo.de"
 documentation: "https://github.com/newnorthdigital/idealo-web-tag/blob/main/README.md"
 versions:
+  - sha: c0b7b974d4d26bba15ca67d1b96493b10911b04c
+    changeNotes: "Rename displayName to 'Idealo Conversion Tracking by New North Digital' per Gallery third-party naming rule (tag name by company)."
   - sha: ef00fe3c7a9ce41d349571313931a54ca70a89a5
     changeNotes: "Embed vendor logo as 96x96 PNG thumbnail; add canonical BOM."
   - sha: 4ab2c21c7c9269c36c2aec2f01425fb3d7c3de4c
