@@ -1,6 +1,8 @@
 homepage: "https://idealo.de"
 documentation: "https://github.com/newnorthdigital/idealo-web-tag/blob/main/README.md"
 versions:
+  - sha: 994b09aab1d8f98dcd376731e30f631db3c8a61e
+    changeNotes: 'NND-badge icon and shortened display name (by New North).'
   - sha: 4e9c30c7c5b01c1a384372b5f226e61bb1e9f388
     changeNotes: "Rename displayName to 'Idealo Tracking by New North Digital' per Gallery third-party naming rule (tag name by company)."
   - sha: c0b7b974d4d26bba15ca67d1b96493b10911b04c
