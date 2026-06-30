@@ -388,6 +388,6 @@ scenarios:
 
 ___NOTES___
 
-Created on 4/1/2026, by New North Digital BV.
+Created on 4/1/2026 by Freek Kampen, New North Digital.
 Idealo conversion tracking pixel for price comparison attribution.
 Pixel endpoint: https://marketing.net.idealo-partner.com/ts/{partnerCode}/tsa
