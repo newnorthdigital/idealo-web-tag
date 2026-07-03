@@ -8,6 +8,7 @@ A Google Tag Manager web tag template for tracking conversions from [idealo](htt
 - Sends order details: order ID, order value, and currency
 - Supports item-level basket data (SKU, product name, brand, price, quantity)
 - Optionally passes the idealo click ID (`idealoid`) for click-level attribution
+- Built-in Consent Mode gate: follows GTM Consent Mode by default, firing only once `ad_storage` is granted and waiting for consent otherwise.
 - Debug logging mode for troubleshooting
 - No external scripts loaded -- uses a lightweight image pixel only
 
@@ -46,6 +47,7 @@ Your idealo partner code is provided by idealo when you set up your merchant acc
 | **Currency** | ISO 4217 currency code (defaults to EUR) | `EUR` |
 | **Basket Items** | Optional product-level data (see below) | -- |
 | **Idealo Click ID** | Optional click ID from the `idealoid` URL parameter | `{{idealo Click ID}}` |
+| **Consent handling** | How the tag reacts to GTM Consent Mode (see below) | `Follow GTM Consent Mode` |
 | **Enable debug logging** | Logs details to the browser console | Disable in production |
 
 ### 3. Basket Items
@@ -73,7 +75,14 @@ When a user clicks through from idealo to your shop, idealo appends an `idealoid
 2. Optionally store it in a first-party cookie so it persists across pages
 3. Pass it to the tag via the **Idealo Click ID** field
 
-### 5. Set the Trigger
+### 5. Consent handling
+
+The tag has a built-in **Consent handling** field so you do not have to gate it yourself:
+
+- **Follow GTM Consent Mode (ad_storage)** (default): the pixel fires only once `ad_storage` is granted. If consent is not yet given, the tag registers a consent listener and fires automatically the moment `ad_storage` is granted. Consent that is never configured counts as granted, so sites without Consent Mode are unaffected.
+- **Fire immediately (I gate consent elsewhere)**: the pixel fires right away. Use this when you already gate consent with GTM's tag-level consent settings or a consent trigger.
+
+### 6. Set the Trigger
 
 Fire this tag on your order confirmation / thank-you page. Use a Page View or custom event trigger that matches your order confirmation page URL.
 

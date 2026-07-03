@@ -132,6 +132,33 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
+    "name": "consentGroup",
+    "displayName": "Consent",
+    "groupStyle": "ZIPPY_OPEN",
+    "subParams": [
+      {
+        "type": "SELECT",
+        "name": "consentMode",
+        "displayName": "Consent handling",
+        "macrosInSelect": false,
+        "selectItems": [
+          {
+            "value": "auto",
+            "displayValue": "Follow GTM Consent Mode (ad_storage)"
+          },
+          {
+            "value": "off",
+            "displayValue": "Fire immediately (I gate consent elsewhere)"
+          }
+        ],
+        "simpleValueType": true,
+        "defaultValue": "auto",
+        "help": "\"Follow GTM Consent Mode\" (recommended) fires only once ad_storage is granted, and waits for consent if it is not yet given. \"Fire immediately\" runs right away, for when you gate consent with GTM's tag-level consent settings or a consent trigger. Consent that is never configured counts as granted, so sites without Consent Mode are unaffected."
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
     "name": "debugging",
     "displayName": "Debugging",
     "groupStyle": "ZIPPY_CLOSED",
@@ -158,6 +185,8 @@ var makeNumber = require('makeNumber');
 var Math = require('Math');
 var JSON = require('JSON');
 var getType = require('getType');
+var isConsentGranted = require('isConsentGranted');
+var addConsentListener = require('addConsentListener');
 
 var enableDebug = data.debug;
 var debugLog = function(msg) {
@@ -174,56 +203,85 @@ debugLog('Partner code: ' + partnerCode);
 debugLog('Order ID: ' + orderId);
 debugLog('Order value: ' + orderValue + ' ' + currency);
 
-// Build basket JSON array
-var basketJson = '';
-if (getType(data.basket_items) === 'array' && data.basket_items.length > 0) {
-  var items = [];
-  for (var i = 0; i < data.basket_items.length; i++) {
-    var item = data.basket_items[i];
-    var obj = {};
-    if (item.pid) obj.pid = makeString(item.pid);
-    if (item.prn) obj.prn = makeString(item.prn);
-    if (item.brn) obj.brn = makeString(item.brn);
-    if (item.pri) obj.pri = makeString(item.pri);
-    if (item.qty) obj.qty = makeString(makeNumber(item.qty));
-    items.push(obj);
+// Fire the idealo pixel. Guarded so it runs at most once, even if the consent
+// listener fires more than once.
+var hasFired = false;
+var fire = function() {
+  if (hasFired) {
+    return;
   }
-  basketJson = JSON.stringify(items);
-  debugLog('Basket items: ' + basketJson);
+  hasFired = true;
+
+  // Build basket JSON array
+  var basketJson = '';
+  if (getType(data.basket_items) === 'array' && data.basket_items.length > 0) {
+    var items = [];
+    for (var i = 0; i < data.basket_items.length; i++) {
+      var item = data.basket_items[i];
+      var obj = {};
+      if (item.pid) obj.pid = makeString(item.pid);
+      if (item.prn) obj.prn = makeString(item.prn);
+      if (item.brn) obj.brn = makeString(item.brn);
+      if (item.pri) obj.pri = makeString(item.pri);
+      if (item.qty) obj.qty = makeString(makeNumber(item.qty));
+      items.push(obj);
+    }
+    basketJson = JSON.stringify(items);
+    debugLog('Basket items: ' + basketJson);
+  }
+
+  // Build pixel URL
+  var baseUrl = 'https://marketing.net.idealo-partner.com/ts/' +
+    encodeUriComponent(partnerCode) + '/tsa';
+
+  var params = '?typ=i' +
+    '&tst=' + encodeUriComponent(timestamp) +
+    '&trc=basket' +
+    '&ctg=sale' +
+    '&sid=checkout' +
+    '&cid=' + encodeUriComponent(orderId) +
+    '&orv=' + encodeUriComponent(orderValue) +
+    '&orc=' + encodeUriComponent(currency);
+
+  if (basketJson) {
+    params = params + '&bsk=' + encodeUriComponent(basketJson);
+  }
+
+  if (data.idealo_click_id) {
+    params = params + '&cli=' + encodeUriComponent(makeString(data.idealo_click_id));
+    debugLog('Click ID: ' + makeString(data.idealo_click_id));
+  }
+
+  var pixelUrl = baseUrl + params;
+  debugLog('Firing pixel for order: ' + makeString(data.orderId));
+
+  sendPixel(pixelUrl, function() {
+    debugLog('Pixel sent successfully');
+    data.gtmOnSuccess();
+  }, function() {
+    debugLog('Pixel failed to send');
+    data.gtmOnFailure();
+  });
+};
+
+// Consent gate. The idealo pixel is advertising/attribution and relies on
+// ad_storage. In the default "auto" mode the tag follows GTM Consent Mode: it
+// fires once ad_storage is granted and waits (via a consent listener) if it is
+// not yet. Choose "Fire immediately" to gate consent at the container level
+// instead. Note: isConsentGranted returns true when consent is not configured,
+// so sites without Consent Mode keep firing.
+var consentMode = data.consentMode || 'auto';
+
+if (consentMode === 'off' || isConsentGranted('ad_storage')) {
+  fire();
+} else {
+  debugLog('Waiting for ad_storage consent');
+  addConsentListener('ad_storage', function(consentType, granted) {
+    if (granted) {
+      fire();
+    }
+  });
 }
-
-// Build pixel URL
-var baseUrl = 'https://marketing.net.idealo-partner.com/ts/' +
-  encodeUriComponent(partnerCode) + '/tsa';
-
-var params = '?typ=i' +
-  '&tst=' + encodeUriComponent(timestamp) +
-  '&trc=basket' +
-  '&ctg=sale' +
-  '&sid=checkout' +
-  '&cid=' + encodeUriComponent(orderId) +
-  '&orv=' + encodeUriComponent(orderValue) +
-  '&orc=' + encodeUriComponent(currency);
-
-if (basketJson) {
-  params = params + '&bsk=' + encodeUriComponent(basketJson);
-}
-
-if (data.idealo_click_id) {
-  params = params + '&cli=' + encodeUriComponent(makeString(data.idealo_click_id));
-  debugLog('Click ID: ' + makeString(data.idealo_click_id));
-}
-
-var pixelUrl = baseUrl + params;
-debugLog('Firing pixel for order: ' + makeString(data.orderId));
-
-sendPixel(pixelUrl, function() {
-  debugLog('Pixel sent successfully');
-  data.gtmOnSuccess();
-}, function() {
-  debugLog('Pixel failed to send');
-  data.gtmOnFailure();
-});
 
 
 ___WEB_PERMISSIONS___
@@ -282,6 +340,58 @@ ___WEB_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "access_consent"
+      },
+      "param": [
+        {
+          "key": "consentTypes",
+          "value": {
+            "type": 2,
+            "listItem": [
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "consentType"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "ad_storage"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
   }
 ]
 
@@ -296,6 +406,7 @@ scenarios:
       order_id: 'ORD-12345',
       order_value: '149.95',
       currency: 'EUR',
+      consentMode: 'off',
       debug: false
     };
 
@@ -318,6 +429,7 @@ scenarios:
         { pid: 'SKU-001', prn: 'Widget A', brn: 'Acme', pri: '149.95', qty: '2' }
       ],
       idealo_click_id: 'abc123xyz',
+      consentMode: 'off',
       debug: true
     };
 
@@ -336,6 +448,7 @@ scenarios:
       order_id: 'ORD-FAIL',
       order_value: '50.00',
       currency: 'EUR',
+      consentMode: 'off',
       debug: false
     };
 
@@ -354,6 +467,7 @@ scenarios:
       order_id: 'ORD-EUR',
       order_value: '25.00',
       currency: '',
+      consentMode: 'off',
       debug: false
     };
 
@@ -373,6 +487,7 @@ scenarios:
       order_value: '10.00',
       currency: 'GBP',
       basket_items: [],
+      consentMode: 'off',
       debug: true
     };
 
@@ -383,6 +498,94 @@ scenarios:
     runCode(mockData);
 
     assertApi('sendPixel').wasCalled();
+    assertApi('gtmOnSuccess').wasCalled();
+- name: "Consent - auto mode fires when ad_storage is already granted"
+  code: |-
+    var mockData = {
+      partner_code: 'i5677845',
+      order_id: 'ORD-GRANTED',
+      order_value: '149.95',
+      currency: 'EUR',
+      consentMode: 'auto',
+      debug: false
+    };
+
+    mock('isConsentGranted', function(type) { return true; });
+    mock('sendPixel', function(url, onSuccess, onFailure) {
+      onSuccess();
+    });
+
+    runCode(mockData);
+
+    assertApi('sendPixel').wasCalled();
+    assertApi('addConsentListener').wasNotCalled();
+    assertApi('gtmOnSuccess').wasCalled();
+- name: "Consent - auto mode waits when ad_storage is denied"
+  code: |-
+    var mockData = {
+      partner_code: 'i5677845',
+      order_id: 'ORD-DENIED',
+      order_value: '149.95',
+      currency: 'EUR',
+      consentMode: 'auto',
+      debug: false
+    };
+
+    mock('isConsentGranted', function(type) { return false; });
+    mock('addConsentListener', function(type, callback) {});
+    mock('sendPixel', function(url, onSuccess, onFailure) {
+      onSuccess();
+    });
+
+    runCode(mockData);
+
+    assertApi('addConsentListener').wasCalled();
+    assertApi('sendPixel').wasNotCalled();
+- name: "Consent - fires once after ad_storage is granted via the listener"
+  code: |-
+    var mockData = {
+      partner_code: 'i5677845',
+      order_id: 'ORD-LISTENER',
+      order_value: '149.95',
+      currency: 'EUR',
+      consentMode: 'auto',
+      debug: false
+    };
+
+    mock('isConsentGranted', function(type) { return false; });
+    mock('addConsentListener', function(type, callback) {
+      callback(type, true);
+    });
+    var pixelCount = 0;
+    mock('sendPixel', function(url, onSuccess, onFailure) {
+      pixelCount++;
+      onSuccess();
+    });
+
+    runCode(mockData);
+
+    assertThat(pixelCount).isEqualTo(1);
+    assertApi('gtmOnSuccess').wasCalled();
+- name: "Consent - fire immediately skips the consent check"
+  code: |-
+    var mockData = {
+      partner_code: 'i5677845',
+      order_id: 'ORD-IMMEDIATE',
+      order_value: '149.95',
+      currency: 'EUR',
+      consentMode: 'off',
+      debug: false
+    };
+
+    mock('isConsentGranted', function(type) { return false; });
+    mock('sendPixel', function(url, onSuccess, onFailure) {
+      onSuccess();
+    });
+
+    runCode(mockData);
+
+    assertApi('sendPixel').wasCalled();
+    assertApi('addConsentListener').wasNotCalled();
     assertApi('gtmOnSuccess').wasCalled();
 
 
